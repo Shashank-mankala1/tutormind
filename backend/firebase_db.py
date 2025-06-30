@@ -1,12 +1,14 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
-import os
 from datetime import datetime
+import json
+import streamlit as st
 
-# Load credentials
-key_path = os.path.join("backend", "firebase_key.json")
+
+firebase_key = json.loads(st.secrets["FIREBASE_KEY"])
+
 if not firebase_admin._apps:
-    cred = credentials.Certificate(key_path)
+    cred = credentials.Certificate(firebase_key)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
