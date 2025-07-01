@@ -8,6 +8,15 @@ from backend.firebase_db import clear_history
 from backend.firebase_auth import register_user, validate_user
 from backend.firebase_db import submit_app_feedback
 
+import streamlit as st
+import urllib.parse
+
+query_params = st.experimental_get_query_params()
+if "ping" in query_params and query_params["ping"][0].lower() == "true":
+    st.write("✅ Ping received — app is alive.")
+    st.stop()
+
+
 st.set_page_config(page_title="TutorMind - AI Tutor")
 st.title("TutorMind - Personalized AI Tutor")
 
