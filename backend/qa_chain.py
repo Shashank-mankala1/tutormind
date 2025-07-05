@@ -1,12 +1,12 @@
 from transformers import pipeline
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings, HuggingFacePipeline
 from langchain_community.vectorstores import FAISS
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 import streamlit as st
-from langchain_community.llms import HuggingFacePipeline
 from sentence_transformers import SentenceTransformer, util
 from langchain.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import create_stuff_documents_chain
+from backend.model_router import query_model
+from collections import Counter
 
 def load_faiss_index(index_path="vector_store/faiss_index"):
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -17,11 +17,22 @@ def load_faiss_index(index_path="vector_store/faiss_index"):
     )
 
 @st.cache_resource
-def load_pipeline(model_choice):
-    return pipeline("text2text-generation", model=model_choice, tokenizer=model_choice, max_length=256)
+def load_pipeline(model_choice, provider):
+    if provider != "local":
+        return None 
+    task = "text2text-generation"
+    if any(key in model_choice.lower() for key in ["llama", "mistral", "phi", "tinyllama"]):
+        task = "text-generation"
+    return pipeline(
+        task,
+        model=model_choice,
+        tokenizer=model_choice,
+        max_new_tokens=512,
+        do_sample=False,
+        temperature=0.7
+    )
 
-
-def rerank_documents(query, documents, top_k=2):
+def rerank_documents(query, documents, top_k=5):
     model = SentenceTransformer('all-MiniLM-L6-v2')
     query_embedding = model.encode(query, convert_to_tensor=True)
     doc_scores = []
@@ -34,19 +45,27 @@ def rerank_documents(query, documents, top_k=2):
     doc_scores.sort(key=lambda x: x[0], reverse=True)
     return [doc for _, doc in doc_scores[:top_k]]
 
-def build_qa_chain(vectorstore, model_choice="google/flan-t5-base", mode="Conceptual (Generative)"):
+def build_qa_chain(vectorstore, model_choice="mistralai/Mistral-7B-Instruct-v0.1", mode="Conceptual (Generative)", provider="local"):
     if mode == "Factual (Extractive)":
         qa_model = pipeline("question-answering", model="deepset/bert-base-cased-squad2")
-
         sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+
         def extractive_qa(query):
-            docs = vectorstore.similarity_search(query, k=10)
+            selected_files = st.session_state.get("selected_files", None)
+            docs = vectorstore.similarity_search(query, k=20)
+            if selected_files:
+                docs = [doc for doc in docs if doc.metadata.get("source") in selected_files]
+            docs = docs[:10]
 
             query_embedding = sentence_model.encode(query, convert_to_tensor=True)
             doc_scores = [(util.cos_sim(query_embedding, sentence_model.encode(doc.page_content, convert_to_tensor=True)).item(), doc) for doc in docs]
             doc_scores.sort(reverse=True)
-
             top_docs = [doc for score, doc in doc_scores[:3]]
+
+            file_counts = Counter(doc.metadata.get("source", "Unknown") for doc in top_docs)
+            most_common_file, _ = file_counts.most_common(1)[0]
+            top_docs = [doc for doc in top_docs if doc.metadata.get("source") == most_common_file]
+
             context = "\n".join([doc.page_content for doc in top_docs])
 
             result = qa_model(question=query, context=context)
@@ -61,28 +80,38 @@ def build_qa_chain(vectorstore, model_choice="google/flan-t5-base", mode="Concep
         return extractive_qa
 
     else:
-        qa_pipe = load_pipeline(model_choice)
-        llm = HuggingFacePipeline(pipeline=qa_pipe)
-
-        prompt = PromptTemplate.from_template("""
-        Use the following course syllabus context to answer the question.
-        If the answer is not explicitly mentioned, say "Not found in the document."
-
-        Context:
-        {context}
-
-        Question: {question}
-
-        Answer:
-        """)
-
-        chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
-
         def generative_qa(query):
-            docs = vectorstore.similarity_search(query, k=10)
-            top_docs = rerank_documents(query, docs, top_k=2)
+            selected_files = st.session_state.get("selected_files", None)
+            docs = vectorstore.similarity_search(query, k=20)
+            if selected_files:
+                docs = [doc for doc in docs if doc.metadata.get("source") in selected_files]
+            docs = docs[:10]
+
+            top_docs = rerank_documents(query, docs, top_k=5)
+
+            file_counts = Counter(doc.metadata.get("source", "Unknown") for doc in top_docs)
+            most_common_file, _ = file_counts.most_common(1)[0]
+            top_docs = [doc for doc in top_docs if doc.metadata.get("source") == most_common_file]
+
+            context = "\n\n".join([doc.page_content for doc in top_docs])
+
+            prompt = f"""You are a helpful assistant. Use ONLY the following context to answer the user's question. \
+If the answer is not in the document, respond with \"Not found in the document.\"
+
+<context>
+{context}
+</context>
+
+<question>
+{query}
+</question>
+
+<answer>
+"""
+            answer = query_model(prompt, provider=provider, model=model_choice)
+
             return {
-                "result": chain.invoke({"context": top_docs, "question": query}),
+                "result": answer,
                 "source_documents": top_docs
             }
 

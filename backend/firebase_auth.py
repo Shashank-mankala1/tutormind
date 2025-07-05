@@ -32,6 +32,8 @@ def register_user(username, password):
 
 def validate_user(username, password):
     """Validates login credentials."""
+    if not username or not password:
+        return False
     doc = db.collection("users").document(username).get()
     if not doc.exists:
         return False

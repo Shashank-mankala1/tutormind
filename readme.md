@@ -1,7 +1,19 @@
 # 🎓 TutorMind – AI-Powered Personalized Tutor
 
-TutorMind is an intelligent, interactive Q\&A system that transforms your study material into a private tutor using the power of Generative AI and Retrieval-Augmented Generation (RAG). It allows users to upload educational documents, ask questions, and receive high-quality, contextual answers with source references — all through a secure, personalized experience.
+TutorMind is a document-grounded GenAI assistant that transforms your files into an intelligent tutor. Powered by Retrieval-Augmented Generation (RAG), LangChain, and multiple LLMs, TutorMind helps users ask **precise, contextual questions** from **PDFs, DOCX, TXT, or even image-based content**.
 
+---
+
+## 🚀 What's New in Version 2.0
+
+* 🔁 **Multi-Model Backend**: Supports Groq, OpenRouter, HuggingFace, and Local inference with dynamic routing
+* 📁 **Multi-File Uploads**: Supports PDF, DOCX, TXT, and images with OCR fallback
+* 📂 **File-Specific QA**: Select files to ask questions from and see file-specific source context
+* 🧠 **Dual QA Modes**: Switch between Conceptual (LLM) and Factual (BERT extractive) answering
+* 🔍 **Adaptive Chunking**: Uses clustering on sentence embeddings for intelligent segmentation
+* 📊 **User Insights**: Tracks questions asked, average answer length, and session stats
+* 🗳️ **Feedback System**: Rate your experience and submit optional comments
+* ✅ **Improved UI/UX**: Tabbed layout, clean session handling, and model info comparison
 
 ---
 
@@ -11,7 +23,7 @@ TutorMind is an intelligent, interactive Q\&A system that transforms your study 
 | ---------- | ---------------------------------------- |
 | Frontend   | Streamlit                                |
 | Backend    | Python + LangChain                       |
-| LLMs       | Flan-T5, LaMini-Flan-T5, BERT            |
+| LLMs       | Groq, OpenRouter, HuggingFace, Local     |
 | Embeddings | all-MiniLM-L6-v2 (sentence-transformers) |
 | Vector DB  | FAISS                                    |
 | Auth + DB  | Firebase Firestore                       |
@@ -21,72 +33,56 @@ TutorMind is an intelligent, interactive Q\&A system that transforms your study 
 ## 🤖 How It Works
 
 1. **User Login/Register** (Firestore-auth)
-2. **Upload PDFs/DOCX/TXT**
-3. **Documents are chunked + embedded** via MiniLM
-4. **Embeddings stored** in FAISS vectorstore
+2. **Upload files** (PDF/DOCX/TXT/Images)
+3. **Text extracted + chunked** using ML-based adaptive chunking
+4. **Embeddings stored** in FAISS
 5. **Question asked → RAG pipeline** triggered
-6. **Answer generated** using BERT or Flan-T5 (auto-selected)
-7. **Answer & source returned** + saved in Firestore
-8. **History displayed** + can be cleared/exported
+6. **Answer generated** using chosen LLM (Factual or Generative)
+7. **Answer & source chunks returned**
+8. **Session saved per user in Firestore**
 
 ---
 
-## 🎓 AI Model Logic
+## 🧠 Model Architecture
 
-| Type       | Model                    | Use Case                  |
-| ---------- | ------------------------ | ------------------------- |
-| Extractive | BERT (deepset/squad2)    | Who/When/Where factual Qs |
-| Generative | Flan-T5 / LaMini-Flan-T5 | Why/How/Open-ended Qs     |
-
-> Auto-detection chooses model based on question type.
-
----
-
-## 🔐 Authentication & User Management
-
-* User registration with username + password
-* Passwords hashed via **SHA-256** for security
-* Users can **login**, **logout**, and **change password**
-* Q\&A **history stored per user** in Firebase
-* Session state managed by Streamlit
+| Mode       | Model Examples                            | Use Case                           |
+| ---------- | ----------------------------------------- | ---------------------------------- |
+| Extractive | BERT (deepset/squad2)                     | Direct factual Qs                  |
+| Generative | LLaMA3, Mistral, Flan-T5, OpenChat, etc.  | Why/How/Conceptual Qs              |
+| Backend    | Dynamic `query_model()` abstraction layer | Unified across Groq/OpenRouter/etc |
 
 ---
 
+## 🔐 Authentication
 
-## 🔧 For Developers
-
-* Modular structure with `app.py`, `qa_chain.py`, `firebase_auth.py`, `firebase_db.py`
-* Easily extend with Whisper for voice input or new LLM endpoints (e.g., GPT, Claude)
-* Add feedback, upvote/downvote answers, or export full session history
-
----
-
-## 🔔 Use Cases
-
-* 📚 Students querying syllabus/notes
-* 💡 Corporate training assistants
-* 📂 Document Q\&A for HR, SOPs, etc.
+* 🔑 Firebase-backed login and registration
+* 🔒 Passwords securely hashed (SHA-256)
+* 🔁 Password change support
+* 🧠 Session-based state with Streamlit
 
 ---
 
 ## ✨ Key Features
 
-* 📂 **Upload Any Document**: PDF, DOCX, or TXT files supported
-* 🧠 **Ask Questions**: Extractive or generative answers from your material
-* 🔎 **Semantic Search**: Find previous Q\&A using keyword or context
-* 🔐 **Secure User Accounts**: Firebase-backed registration, login, and password management
-* ⏲️ **Session Handling**: Keeps Q\&A history per user, exportable to PDF
-* ⚖️ **Auto Model Selection**: BERT for factual, Flan/LaMini for conceptual questions
-* ♻️ **Q\&A History Control**: Clear history and manage session data
-* ✅ **Deployable on Streamlit Cloud**
+* 📁 Upload any document (PDF, DOCX, TXT, IMG)
+* 🧠 Ask deep or factual questions from your content
+* 📂 Ask from specific files only
+* 📄 View exact source context with file label
+* 🔁 Clear Q\&A history or uploaded files
+* 🧠 Model + QA Mode switching (Groq / OpenRouter / HuggingFace)
+* 📊 See insights on session activity (e.g., longest answer)
+* 🗣️ Submit feedback directly
+* ✅ Fully deployable on Streamlit Cloud
+
 ---
 
+## 🧪 Future Enhancements
 
-## 📊 Future Enhancements
-
-* 🎤 Whisper voice-based Q\&A input
-* 🧪 GPT / Claude integration with GGUF models
-* 📄 Multi-Language Support
+* 🗨️ Real-time Chat Mode with memory
+* 📈 Admin dashboard & analytics
+* 🎯 Adaptive reranking based on feedback
+* 📤 Export sessions to PDF or shareable link
+* 🗣️ Whisper voice input
 
 ---
 
@@ -96,4 +92,4 @@ MIT License – Free for personal, academic, or educational use.
 
 ---
 
-## ✨ Made with ❤️ using GenAI + LangChain + Streamlit by Shashank
+## ✨ Made with ❤️ by Shashank using GenAI, LangChain, and Streamlit
