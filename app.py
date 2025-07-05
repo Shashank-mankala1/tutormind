@@ -10,7 +10,7 @@ import hashlib
 from langchain.schema import Document
 import os
 import nltk
-nltk.download("punkt")
+nltk.download("punkt", force=True)
 
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
