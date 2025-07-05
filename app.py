@@ -10,13 +10,19 @@ import hashlib
 from langchain.schema import Document
 import os
 import nltk
+
 NLTK_DATA_DIR = "/tmp/nltk_data"
 os.makedirs(NLTK_DATA_DIR, exist_ok=True)
 
-nltk.download("punkt", download_dir=NLTK_DATA_DIR)
-nltk.download('punkt_tab', download_dir=NLTK_DATA_DIR)
+@st.cache_resource
+def download_nltk_models():
+    nltk.download("punkt", download_dir=NLTK_DATA_DIR)
+    nltk.download("punkt_tab", download_dir=NLTK_DATA_DIR)  # Only if actually needed
+
+download_nltk_models()
 nltk.data.path.clear()
 nltk.data.path.append(NLTK_DATA_DIR)
+
 
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
